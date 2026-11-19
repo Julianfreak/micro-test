@@ -1,37 +1,47 @@
-# Micro-Test Go Service
+# Micro-Test Service
 
-Este es un microservicio básico desarrollado en Go como parte de una prueba técnica de arquitectura.
+Microservicio profesional desarrollado en Go, diseñado bajo principios de escalabilidad, observabilidad y entrega continua.
 
-## Componentes del Proyecto
+## 🚀 Características
 
-- **Languaje**: Go (Golang)
-- **Framework**: Estándar de la biblioteca `net/http` de Go.
-- **Endpoints**:
-  - `GET /health`: Devuelve el estado actual del servicio.
+- **Arquitectura Limpia**: Implementación robusta utilizando el toolkit estándar de Go.
+- **Documentación Interactiva**: Integración nativa con OpenAPI/Swagger.
+- **Contenedorización**: Dockerfile multi-stage optimizado para imágenes de producción de bajo footprint.
+- **CI/CD**: Pipeline automatizado con GitHub Actions para validación de código y builds de contenedores.
+- **Observabilidad**: Endpoint de salud nativo para orquestadores como Kubernetes.
 
-## Estructura de Archivos
+## 🛠️ Tecnologías
 
-- `main.go`: Contiene la lógica principal del servidor HTTP y la definición del endpoint de salud.
-- `go.mod`: Definición del módulo y dependencias.
+- **Go**: 1.21+
+- **OpenAPI/Swagger**: Para documentación de API.
+- **Docker**: Despliegue mediante contenedores.
+- **GitHub Actions**: Automatización de CI/CD.
 
-## Ejecución Local
+## 📦 Ejecución con Docker
 
-Para ejecutar el proyecto localmente, asegúrate de tener Go instalado y ejecuta:
+Para levantar el servicio en un entorno contenedorizado:
 
 ```bash
-go run main.go
+docker build -t micro-test .
+docker run -p 8089:8089 micro-test
 ```
 
-El servidor estará disponible en [http://localhost:8089](http://localhost:8089).
+## 📖 Documentación de la API
 
-## Endpoint de Salud
+Una vez iniciado el servicio, la documentación interactiva de Swagger está disponible en:
+[http://localhost:8089/swagger/index.html](http://localhost:8089/swagger/index.html)
 
+## 🚦 Endpoints Principales
+
+### Health Check
 - **URL**: `/health`
-- **Método**: `GET`
-- **Respuesta**:
-  ```json
-  {
-    "status": "UP",
-    "agent": "local"
-  }
-  ```
+- **Descripción**: Indica el estado operativo del servicio.
+- **Respuesta**: `{"status": "UP", "agent": "local"}`
+
+## ⚙️ CI/CD Pipeline
+
+El proyecto incluye un flujo de trabajo en `.github/workflows/ci.yml` que ejecuta automáticamente:
+1. Instalación de dependencias.
+2. Compilación del binario.
+3. Ejecución de pruebas unitarias.
+4. Verificación de construcción de imagen Docker.

@@ -1,0 +1,9 @@
+.git
+.github
+Dockerfile
+docker-compose.yaml
+*.exe
+*.test
+bin
+dist
+vendor
