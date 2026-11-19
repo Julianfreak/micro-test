@@ -1,4 +1,40 @@
+basePath: /
+definitions:
+  main.HealthResponse:
+    properties:
+      agent:
+        example: local
+        type: string
+      status:
+        example: UP
+        type: string
+    type: object
+host: localhost:8089
 info:
-  contact: {}
-paths: {}
+  contact:
+    email: support@swagger.io
+    name: Soporte Técnico
+    url: http://www.swagger.io/support
+  description: Servicio de salud para la infraestructura de microservicios robustos
+    en Go.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Micro-Test API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Obtiene el estado actual y el agente del microservicio
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.HealthResponse'
+      summary: Verificar el estado del servicio
+      tags:
+      - health
 swagger: "2.0"

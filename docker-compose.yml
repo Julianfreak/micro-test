@@ -1,0 +1,10 @@
+
+services:
+  micro-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: micro_test_api
+    ports:
+      - "8089:8089"
+    restart: unless-stopped
