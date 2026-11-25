@@ -18,6 +18,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      secrets:
+        - source: go-ca
+          target: go-ca
     ports:
       - "8089:8089"
     environment:
@@ -30,3 +33,7 @@ services:
 
 volumes:
   postgres_data:
+
+secrets:
+  go-ca:
+    file: ${GO_CA_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}

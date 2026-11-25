@@ -46,6 +46,14 @@ docker compose down
 
 > En desarrollo, Compose usa credenciales locales de ejemplo. Cámbialas y gestiona los secretos de forma segura antes de desplegar el servicio fuera de un entorno local.
 
+Si Docker devuelve `x509: certificate signed by unknown authority` al descargar módulos, configura `GO_CA_CERT_FILE` con la ruta al bundle de CA confiable del host y vuelve a construir:
+
+```bash
+GO_CA_CERT_FILE=/ruta/al/ca-bundle.crt docker compose up --build -d
+```
+
+En Linux, por defecto se usa `/etc/ssl/certs/ca-certificates.crt`. La CA adicional se monta como secreto solo durante la etapa de build; la verificación TLS no se desactiva y el certificado adicional no se copia a la imagen final.
+
 ## API
 
 Cada artículo tiene un SKU único, un nombre y una cantidad no negativa:
