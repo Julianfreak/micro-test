@@ -1,4 +1,4 @@
-package inventory
+package httpapi
 
 import (
 	"context"
@@ -8,15 +8,29 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
+
+	"github.com/Julianfreak/micro-test/internal/inventory"
 )
 
-type Handler struct {
-	store Store
+type inventoryUseCases interface {
+	List(context.Context) ([]inventory.Item, error)
+	Get(context.Context, string) (inventory.Item, error)
+	Create(context.Context, inventory.Item) (inventory.Item, error)
+	Update(context.Context, string, inventory.Item) (inventory.Item, error)
+	Delete(context.Context, string) error
 }
 
-func NewHandler(store Store) *Handler {
-	return &Handler{store: store}
+type ReadinessChecker interface {
+	PingContext(context.Context) error
+}
+
+type Handler struct {
+	service   inventoryUseCases
+	readiness ReadinessChecker
+}
+
+func NewHandler(service inventoryUseCases, readiness ReadinessChecker) *Handler {
+	return &Handler{service: service, readiness: readiness}
 }
 
 func (h *Handler) Routes() *http.ServeMux {
@@ -54,8 +68,8 @@ func (h *Handler) live(w http.ResponseWriter, _ *http.Request) {
 // @Router       /health [get]
 // @Router       /health/ready [get]
 func (h *Handler) ready(w http.ResponseWriter, r *http.Request) {
-	if checker, ok := h.store.(interface{ PingContext(context.Context) error }); ok {
-		if err := checker.PingContext(r.Context()); err != nil {
+	if h.readiness != nil {
+		if err := h.readiness.PingContext(r.Context()); err != nil {
 			slog.ErrorContext(r.Context(), "readiness check failed", "error", err)
 			writeError(w, http.StatusServiceUnavailable, "service is not ready")
 			return
@@ -67,11 +81,11 @@ func (h *Handler) ready(w http.ResponseWriter, r *http.Request) {
 // @Summary      List inventory items
 // @Tags         inventory
 // @Produce      json
-// @Success      200 {array} Item
+// @Success      200 {array} inventory.Item
 // @Failure      500 {object} errorResponse
 // @Router       /items [get]
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	items, err := h.store.List(r.Context())
+	items, err := h.service.List(r.Context())
 	if err != nil {
 		slog.ErrorContext(r.Context(), "list inventory items", "error", err)
 		writeError(w, http.StatusInternalServerError, "could not list inventory")
@@ -84,13 +98,13 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 // @Tags         inventory
 // @Produce      json
 // @Param        sku path string true "Stock keeping unit"
-// @Success      200 {object} Item
+// @Success      200 {object} inventory.Item
 // @Failure      404 {object} errorResponse
 // @Failure      500 {object} errorResponse
 // @Router       /items/{sku} [get]
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
-	item, err := h.store.Get(r.Context(), r.PathValue("sku"))
-	if errors.Is(err, ErrNotFound) {
+	item, err := h.service.Get(r.Context(), r.PathValue("sku"))
+	if errors.Is(err, inventory.ErrNotFound) {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
@@ -106,24 +120,24 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 // @Tags         inventory
 // @Accept       json
 // @Produce      json
-// @Param        item body Item true "Inventory item"
-// @Success      201 {object} Item
+// @Param        item body inventory.Item true "Inventory item"
+// @Success      201 {object} inventory.Item
 // @Failure      400 {object} errorResponse
 // @Failure      409 {object} errorResponse
 // @Failure      500 {object} errorResponse
 // @Router       /items [post]
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	var item Item
+	var item inventory.Item
 	if err := decodeItem(w, r, &item); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := validateItem(item); err != nil {
+	created, err := h.service.Create(r.Context(), item)
+	if errors.Is(err, inventory.ErrInvalid) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	created, err := h.store.Create(r.Context(), item)
-	if errors.Is(err, ErrConflict) {
+	if errors.Is(err, inventory.ErrConflict) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
@@ -140,28 +154,24 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Param        sku path string true "Stock keeping unit"
-// @Param        item body Item true "Updated inventory item; SKU must match the path"
-// @Success      200 {object} Item
+// @Param        item body inventory.Item true "Updated inventory item; SKU must match the path"
+// @Success      200 {object} inventory.Item
 // @Failure      400 {object} errorResponse
 // @Failure      404 {object} errorResponse
 // @Failure      500 {object} errorResponse
 // @Router       /items/{sku} [put]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
-	var item Item
+	var item inventory.Item
 	if err := decodeItem(w, r, &item); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if item.SKU != r.PathValue("sku") {
-		writeError(w, http.StatusBadRequest, "sku in request body must match URL")
-		return
-	}
-	if err := validateItem(item); err != nil {
+	updated, err := h.service.Update(r.Context(), r.PathValue("sku"), item)
+	if errors.Is(err, inventory.ErrInvalid) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	updated, err := h.store.Update(r.Context(), r.PathValue("sku"), item)
-	if errors.Is(err, ErrNotFound) {
+	if errors.Is(err, inventory.ErrNotFound) {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
@@ -181,8 +191,8 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} errorResponse
 // @Router       /items/{sku} [delete]
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
-	err := h.store.Delete(r.Context(), r.PathValue("sku"))
-	if errors.Is(err, ErrNotFound) {
+	err := h.service.Delete(r.Context(), r.PathValue("sku"))
+	if errors.Is(err, inventory.ErrNotFound) {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
@@ -194,7 +204,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func decodeItem(w http.ResponseWriter, r *http.Request, item *Item) error {
+func decodeItem(w http.ResponseWriter, r *http.Request, item *inventory.Item) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -203,19 +213,6 @@ func decodeItem(w http.ResponseWriter, r *http.Request, item *Item) error {
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return errors.New("request body must contain a single JSON object")
-	}
-	return nil
-}
-
-func validateItem(item Item) error {
-	if strings.TrimSpace(item.SKU) == "" || len(item.SKU) > 64 {
-		return errors.New("sku is required and must be at most 64 characters")
-	}
-	if strings.TrimSpace(item.Name) == "" || len(item.Name) > 200 {
-		return errors.New("name is required and must be at most 200 characters")
-	}
-	if item.Quantity < 0 {
-		return errors.New("quantity must not be negative")
 	}
 	return nil
 }

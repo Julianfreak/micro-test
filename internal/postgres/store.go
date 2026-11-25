@@ -18,6 +18,8 @@ type Store struct {
 	db *sql.DB
 }
 
+var _ inventory.Repository = (*Store)(nil)
+
 func Open(ctx context.Context, databaseURL string) (*Store, error) {
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {

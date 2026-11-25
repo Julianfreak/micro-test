@@ -1,5 +1,17 @@
 basePath: /
 definitions:
+  httpapi.errorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  httpapi.healthResponse:
+    properties:
+      agent:
+        type: string
+      status:
+        type: string
+    type: object
   inventory.Item:
     properties:
       name:
@@ -9,18 +21,6 @@ definitions:
       sku:
         type: string
       updated_at:
-        type: string
-    type: object
-  inventory.errorResponse:
-    properties:
-      error:
-        type: string
-    type: object
-  inventory.healthResponse:
-    properties:
-      agent:
-        type: string
-      status:
         type: string
     type: object
 host: localhost:8089
@@ -44,11 +44,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/inventory.healthResponse'
+            $ref: '#/definitions/httpapi.healthResponse'
         "503":
           description: Service Unavailable
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
       summary: Check service readiness
       tags:
       - health
@@ -60,7 +60,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/inventory.healthResponse'
+            $ref: '#/definitions/httpapi.healthResponse'
       summary: Check whether the process is alive
       tags:
       - health
@@ -72,11 +72,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/inventory.healthResponse'
+            $ref: '#/definitions/httpapi.healthResponse'
         "503":
           description: Service Unavailable
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
       summary: Check service readiness
       tags:
       - health
@@ -94,7 +94,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
       summary: List inventory items
       tags:
       - inventory
@@ -118,15 +118,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
       summary: Create an inventory item
       tags:
       - inventory
@@ -144,11 +144,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
       summary: Delete an inventory item
       tags:
       - inventory
@@ -169,11 +169,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
       summary: Get an inventory item
       tags:
       - inventory
@@ -202,15 +202,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/inventory.errorResponse'
+            $ref: '#/definitions/httpapi.errorResponse'
       summary: Update an inventory item
       tags:
       - inventory

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	_ "github.com/Julianfreak/micro-test/docs"
+	"github.com/Julianfreak/micro-test/internal/httpapi"
 	"github.com/Julianfreak/micro-test/internal/inventory"
 	"github.com/Julianfreak/micro-test/internal/postgres"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -60,7 +61,8 @@ func run() (runErr error) {
 		}
 	}()
 
-	mux := inventory.NewHandler(store).Routes()
+	service := inventory.NewService(store)
+	mux := httpapi.NewHandler(service, store).Routes()
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	server := &http.Server{

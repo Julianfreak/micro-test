@@ -36,13 +36,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/inventory.healthResponse"
+                            "$ref": "#/definitions/httpapi.healthResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     }
                 }
@@ -61,7 +61,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/inventory.healthResponse"
+                            "$ref": "#/definitions/httpapi.healthResponse"
                         }
                     }
                 }
@@ -80,13 +80,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/inventory.healthResponse"
+                            "$ref": "#/definitions/httpapi.healthResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     }
                 }
@@ -114,7 +114,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     }
                 }
@@ -151,19 +151,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     }
                 }
@@ -197,13 +197,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     }
                 }
@@ -247,19 +247,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     }
                 }
@@ -285,13 +285,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/inventory.errorResponse"
+                            "$ref": "#/definitions/httpapi.errorResponse"
                         }
                     }
                 }
@@ -299,6 +299,25 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "httpapi.errorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.healthResponse": {
+            "type": "object",
+            "properties": {
+                "agent": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "inventory.Item": {
             "type": "object",
             "properties": {
@@ -312,25 +331,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "inventory.errorResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "inventory.healthResponse": {
-            "type": "object",
-            "properties": {
-                "agent": {
-                    "type": "string"
-                },
-                "status": {
                     "type": "string"
                 }
             }

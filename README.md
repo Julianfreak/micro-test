@@ -9,7 +9,8 @@ Microservicio de inventario desarrollado en Go. Sirve como base de referencia pa
 - Validación de solicitudes JSON y errores HTTP consistentes.
 - Chequeos de salud diferenciados: liveness y readiness.
 - Apagado graceful y límites de tiempo para las conexiones HTTP.
-- Pruebas de handlers con un almacenamiento de prueba aislado.
+- Arquitectura hexagonal: aplicación y dominio aislados de los adaptadores HTTP y PostgreSQL.
+- Pruebas unitarias del servicio con un repositorio en memoria y del adaptador HTTP con casos simulados.
 - Docker multi-stage y entorno local con Docker Compose.
 - OpenAPI/Swagger en `/swagger/index.html`.
 - CI con compilación, pruebas con `-race`, formato, `go vet` y build de Docker.
@@ -110,10 +111,12 @@ go vet ./...
 go build ./...
 ```
 
+Las pruebas del núcleo no requieren PostgreSQL; usan un repositorio en memoria para comprobar las reglas del servicio y la propagación de errores. El adaptador HTTP se prueba aparte mediante un puerto de aplicación simulado.
+
 Para regenerar la documentación Swagger después de modificar las anotaciones:
 
 ```bash
-go run github.com/swaggo/swag/cmd/swag@v1.16.6 init --generalInfo main.go --dir . --output docs
+go run github.com/swaggo/swag/cmd/swag@v1.16.6 init --generalInfo main.go --dir . --output docs --parseInternal
 ```
 
 El workflow de GitHub Actions está en `.github/workflows/ci.yml`. Usa Go 1.23.3 y valida el proyecto en los pushes y pull requests a `main`.
@@ -124,8 +127,9 @@ El workflow de GitHub Actions está en `.github/workflows/ci.yml`. Usa Go 1.23.3
 .
 ├── docs/                         # OpenAPI generado con Swaggo
 ├── internal/
-│   ├── inventory/                # Modelo, contrato de almacenamiento y handlers HTTP
-│   └── postgres/                  # Persistencia PostgreSQL y esquema inicial
+│   ├── httpapi/                  # Adaptador de entrada HTTP y sus pruebas
+│   ├── inventory/                # Dominio, puerto de salida y servicio de aplicación
+│   └── postgres/                 # Adaptador de persistencia y esquema inicial
 ├── .github/workflows/ci.yml
 ├── Dockerfile                    # Build multi-stage con runtime mínimo
 ├── docker-compose.yml            # API y PostgreSQL para desarrollo local
