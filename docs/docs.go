@@ -12,7 +12,6 @@ const docTemplate = `{
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "Soporte Técnico",
-            "url": "http://www.swagger.io/support",
             "email": "support@swagger.io"
         },
         "license": {
@@ -26,19 +25,273 @@ const docTemplate = `{
     "paths": {
         "/health": {
             "get": {
-                "description": "Obtiene el estado actual y el agente del microservicio",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "health"
                 ],
-                "summary": "Verificar el estado del servicio",
+                "summary": "Check service readiness",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.HealthResponse"
+                            "$ref": "#/definitions/inventory.healthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/live": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Check whether the process is alive",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.healthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/ready": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Check service readiness",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.healthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/items": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "List inventory items",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/inventory.Item"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Create an inventory item",
+                "parameters": [
+                    {
+                        "description": "Inventory item",
+                        "name": "item",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.Item"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.Item"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/items/{sku}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Get an inventory item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Stock keeping unit",
+                        "name": "sku",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.Item"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Update an inventory item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Stock keeping unit",
+                        "name": "sku",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated inventory item; SKU must match the path",
+                        "name": "item",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.Item"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.Item"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Delete an inventory item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Stock keeping unit",
+                        "name": "sku",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.errorResponse"
                         }
                     }
                 }
@@ -46,16 +299,39 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.HealthResponse": {
+        "inventory.Item": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "sku": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.errorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.healthResponse": {
             "type": "object",
             "properties": {
                 "agent": {
-                    "type": "string",
-                    "example": "local"
+                    "type": "string"
                 },
                 "status": {
-                    "type": "string",
-                    "example": "UP"
+                    "type": "string"
                 }
             }
         }
@@ -68,8 +344,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8089",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Micro-Test API",
-	Description:      "Servicio de salud para la infraestructura de microservicios robustos en Go.",
+	Title:            "Micro-Test Inventory API",
+	Description:      "API de inventario para un microservicio de referencia en Go.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -1,145 +1,134 @@
-# Micro-Test Service
+# Micro-Test Inventory API
 
-Microservicio desarrollado en Go, diseñado bajo principios de simplicidad, escalabilidad, observabilidad y entrega continua.
+Microservicio de inventario desarrollado en Go. Sirve como base de referencia para construir servicios HTTP con persistencia, validación, pruebas automatizadas y ejecución reproducible.
 
-## 🚀 Características
+## Funcionalidades
 
-- **Arquitectura ligera:** Implementación utilizando el paquete estándar `net/http` de Go.
-- **Documentación interactiva:** Integración con OpenAPI/Swagger mediante Swaggo.
-- **Contenedorización:** Docker con imagen mínima `scratch` para reducir el tamaño y la superficie de ataque.
-- **Orquestación local:** Docker Compose para facilitar la construcción y ejecución del servicio.
-- **CI/CD:** Pipeline automatizado con GitHub Actions para validación de código y construcción de contenedores.
-- **Observabilidad:** Endpoint de salud para verificar el estado operativo del servicio.
+- API REST para crear, listar, consultar, actualizar y eliminar artículos.
+- PostgreSQL con creación automática de la tabla al iniciar el servicio.
+- Validación de solicitudes JSON y errores HTTP consistentes.
+- Chequeos de salud diferenciados: liveness y readiness.
+- Apagado graceful y límites de tiempo para las conexiones HTTP.
+- Pruebas de handlers con un almacenamiento de prueba aislado.
+- Docker multi-stage y entorno local con Docker Compose.
+- OpenAPI/Swagger en `/swagger/index.html`.
+- CI con compilación, pruebas con `-race`, formato, `go vet` y build de Docker.
 
-## 🛠️ Tecnologías
+## Requisitos
 
-- **Go:** 1.23.3.
-- **OpenAPI/Swagger:** Documentación interactiva de la API.
-- **Docker:** Construcción y ejecución de contenedores.
-- **Docker Compose:** Administración del servicio.
-- **GitHub Actions:** Automatización de CI/CD.
+- Go 1.23.3.
+- Docker y Docker Compose para iniciar la API junto con PostgreSQL.
 
-## 📁 Estructura del proyecto
+## Inicio rápido
 
-```text
-microservicios/
-├── docs/
-│   ├── docs.go
-│   ├── swagger.json
-│   └── swagger.yaml
-├── Dockerfile
-├── docker-compose.yml
-├── go.mod
-├── go.sum
-├── main.go
-├── micro-test
-└── README.md
-```
-
-## 📦 Ejecución con Docker
-
-El proyecto utiliza una imagen Docker basada en `scratch`, que permite ejecutar el binario sin incorporar un sistema operativo completo ni dependencias dinámicas.
-
-Para utilizar esta configuración, primero es necesario compilar la aplicación localmente.
-
-### 1. Compilar el binario
-
-Desde la raíz del proyecto ejecutar:
-
-```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o micro-test -ldflags="-w -s" main.go
-```
-
-**Explicación:**
-
-- `CGO_ENABLED=0`: genera un ejecutable sin dependencias dinámicas de C.
-- `GOOS=linux`: establece Linux como sistema operativo de destino.
-- `GOARCH=amd64`: establece la arquitectura x86-64.
-- `-ldflags="-w -s"`: elimina información de depuración y símbolos para reducir el tamaño del ejecutable.
-
-### 2. Construir e iniciar el contenedor
-
-Desde la raíz del proyecto ejecutar:
+Desde la raíz del repositorio:
 
 ```bash
 docker compose up --build -d
 ```
 
-Docker Compose construirá la imagen utilizando el Dockerfile y ejecutará el servicio.
-
-### 3. Verificar el contenedor
-
-Consultar el estado:
+Verifica el estado y los logs:
 
 ```bash
 docker compose ps
-```
-
-Consultar los registros:
-
-```bash
 docker compose logs -f micro-test
 ```
 
-### 4. Detener el servicio
+La API queda disponible en `http://localhost:8089` y Swagger en `http://localhost:8089/swagger/index.html`.
+PostgreSQL conserva los datos en el volumen `postgres_data`; `docker compose down` detiene los servicios sin borrar ese volumen.
+
+Para detener los servicios:
 
 ```bash
 docker compose down
 ```
 
-### 5. Reconstruir después de realizar cambios
+> En desarrollo, Compose usa credenciales locales de ejemplo. Cámbialas y gestiona los secretos de forma segura antes de desplegar el servicio fuera de un entorno local.
 
-Cuando se modifique el código fuente, es necesario volver a compilar el binario antes de construir la imagen:
+## API
 
-```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o micro-test -ldflags="-w -s" main.go
-
-docker compose up --build -d
-```
-
-**Nota:** La configuración actual utiliza un binario compilado para Linux AMD64. Si el entorno de destino utiliza otra arquitectura, será necesario ajustar `GOARCH`.
-
-## 📖 Documentación de la API
-
-Una vez iniciado el servicio, la documentación interactiva de Swagger estará disponible en:
-
-[http://localhost:8089/swagger/index.html](http://localhost:8089/swagger/index.html)
-
-## 🚦 Endpoints principales
-
-### Health Check
-
-- **Método:** GET
-- **URL:** `/health`
-- **Descripción:** Permite verificar el estado operativo del microservicio.
-
-Respuesta esperada:
+Cada artículo tiene un SKU único, un nombre y una cantidad no negativa:
 
 ```json
 {
-  "status": "UP",
-  "agent": "local"
+  "sku": "SKU-001",
+  "name": "Teclado",
+  "quantity": 12
 }
 ```
 
-Para probar el endpoint desde la terminal:
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/items` | Lista los artículos |
+| `POST` | `/items` | Crea un artículo; responde `409` si el SKU ya existe |
+| `GET` | `/items/{sku}` | Consulta un artículo |
+| `PUT` | `/items/{sku}` | Actualiza el artículo; el SKU del cuerpo debe coincidir con la ruta |
+| `DELETE` | `/items/{sku}` | Elimina un artículo |
+| `GET` | `/health/live` | Indica que el proceso está activo |
+| `GET` | `/health/ready` | Comprueba que PostgreSQL responde |
+| `GET` | `/health` | Alias de readiness, conservado por compatibilidad |
+
+Ejemplo para crear un artículo:
 
 ```bash
-curl http://localhost:8089/health
+curl -X POST http://localhost:8089/items \
+  -H 'Content-Type: application/json' \
+  -d '{"sku":"SKU-001","name":"Teclado","quantity":12}'
 ```
 
-## ⚙️ CI/CD Pipeline
+Las solicitudes inválidas responden `400`, los recursos inexistentes `404` y los SKU duplicados `409`. Las respuestas de error usan el formato:
 
-El proyecto incluye un flujo de trabajo en `.github/workflows/ci.yml` que automatiza las siguientes tareas:
+```json
+{
+  "error": "inventory item already exists"
+}
+```
 
-1. Instalación de dependencias.
-2. Compilación del código fuente.
-3. Ejecución de pruebas unitarias.
-4. Verificación de construcción de la imagen Docker.
+La especificación OpenAPI está disponible en Swagger UI y en `docs/swagger.json` / `docs/swagger.yaml`.
 
-## 🔐 Consideraciones de despliegue
+## Configuración
 
-- El contenedor utiliza `scratch` como imagen base para minimizar componentes innecesarios.
-- El binario debe compilarse para Linux y la arquitectura correspondiente al entorno de ejecución.
-- Se utiliza `CGO_ENABLED=0` para generar un ejecutable independiente de bibliotecas dinámicas de C.
-- Docker Compose publica el puerto `8089` del contenedor en el puerto `8089` del host.
+| Variable | Valor predeterminado | Descripción |
+|---|---|---|
+| `PORT` | `8089` | Puerto HTTP, entre 1 y 65535 |
+| `DATABASE_URL` | `postgres://micro_test:micro_test@localhost:5432/micro_test?sslmode=disable` | DSN de conexión a PostgreSQL |
+
+Para ejecutar el servicio directamente con Go, inicia PostgreSQL por separado y configura el DSN:
+
+```bash
+DATABASE_URL='postgres://micro_test:micro_test@localhost:5432/micro_test?sslmode=disable' go run .
+```
+
+La tabla de inventario se crea automáticamente al arrancar.
+
+## Desarrollo y validación
+
+```bash
+test -z "$(gofmt -l .)"
+go test -race ./...
+go vet ./...
+go build ./...
+```
+
+Para regenerar la documentación Swagger después de modificar las anotaciones:
+
+```bash
+go run github.com/swaggo/swag/cmd/swag@v1.16.6 init --generalInfo main.go --dir . --output docs
+```
+
+El workflow de GitHub Actions está en `.github/workflows/ci.yml`. Usa Go 1.23.3 y valida el proyecto en los pushes y pull requests a `main`.
+
+## Estructura del proyecto
+
+```text
+.
+├── docs/                         # OpenAPI generado con Swaggo
+├── internal/
+│   ├── inventory/                # Modelo, contrato de almacenamiento y handlers HTTP
+│   └── postgres/                  # Persistencia PostgreSQL y esquema inicial
+├── .github/workflows/ci.yml
+├── Dockerfile                    # Build multi-stage con runtime mínimo
+├── docker-compose.yml            # API y PostgreSQL para desarrollo local
+├── go.mod
+└── main.go
+```

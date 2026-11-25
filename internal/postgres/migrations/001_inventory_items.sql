@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS inventory_items (
+    sku TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity >= 0),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

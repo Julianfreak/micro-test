@@ -1,14 +1,16 @@
 
-# Imagen mínima sin sistema operativo
+FROM golang:1.23-alpine AS build
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/micro-test .
+
 FROM scratch
+COPY --from=build /out/micro-test /micro-test
+COPY --from=build /etc/ssl/cert.pem /etc/ssl/cert.pem
+USER 65532:65532
 
-WORKDIR /app
-
-# Copiar el ejecutable compilado localmente
-COPY micro-test .
-
-# Puerto del microservicio
 EXPOSE 8089
-
-# Iniciar aplicación
-ENTRYPOINT ["./micro-test"]
+ENTRYPOINT ["/micro-test"]
