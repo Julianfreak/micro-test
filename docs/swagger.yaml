@@ -12,6 +12,22 @@ definitions:
       status:
         type: string
     type: object
+  httpapi.tokenRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  httpapi.tokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      token_type:
+        type: string
+    type: object
   inventory.Item:
     properties:
       name:
@@ -36,6 +52,39 @@ info:
   title: Micro-Test Inventory API
   version: "1.0"
 paths:
+  /auth/token:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Configured username and password
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.tokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.tokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
+      summary: Obtain a JWT access token
+      tags:
+      - auth
   /health:
     get:
       produces:
@@ -45,10 +94,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/httpapi.healthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
         "503":
           description: Service Unavailable
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: Check service readiness
       tags:
       - health
@@ -61,6 +116,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/httpapi.healthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: Check whether the process is alive
       tags:
       - health
@@ -73,10 +134,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/httpapi.healthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
         "503":
           description: Service Unavailable
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: Check service readiness
       tags:
       - health
@@ -91,10 +158,16 @@ paths:
             items:
               $ref: '#/definitions/inventory.Item'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: List inventory items
       tags:
       - inventory
@@ -119,6 +192,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
         "409":
           description: Conflict
           schema:
@@ -127,6 +204,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: Create an inventory item
       tags:
       - inventory
@@ -141,6 +220,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
         "404":
           description: Not Found
           schema:
@@ -149,6 +232,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete an inventory item
       tags:
       - inventory
@@ -166,6 +251,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/inventory.Item'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
         "404":
           description: Not Found
           schema:
@@ -174,6 +263,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: Get an inventory item
       tags:
       - inventory
@@ -203,6 +294,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
         "404":
           description: Not Found
           schema:
@@ -211,7 +306,15 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/httpapi.errorResponse'
+      security:
+      - BearerAuth: []
       summary: Update an inventory item
       tags:
       - inventory
+securityDefinitions:
+  BearerAuth:
+    description: Enter "Bearer" followed by a space and a valid JWT.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

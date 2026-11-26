@@ -55,6 +55,8 @@ type healthResponse struct {
 // @Tags         health
 // @Produce      json
 // @Success      200 {object} healthResponse
+// @Failure      401 {object} errorResponse
+// @Security     BearerAuth
 // @Router       /health/live [get]
 func (h *Handler) live(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, healthResponse{Status: "UP", Agent: "local"})
@@ -65,6 +67,8 @@ func (h *Handler) live(w http.ResponseWriter, _ *http.Request) {
 // @Produce      json
 // @Success      200 {object} healthResponse
 // @Failure      503 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Security     BearerAuth
 // @Router       /health [get]
 // @Router       /health/ready [get]
 func (h *Handler) ready(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +87,8 @@ func (h *Handler) ready(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200 {array} inventory.Item
 // @Failure      500 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Security     BearerAuth
 // @Router       /items [get]
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	items, err := h.service.List(r.Context())
@@ -101,6 +107,8 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 // @Success      200 {object} inventory.Item
 // @Failure      404 {object} errorResponse
 // @Failure      500 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Security     BearerAuth
 // @Router       /items/{sku} [get]
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	item, err := h.service.Get(r.Context(), r.PathValue("sku"))
@@ -125,6 +133,8 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 // @Failure      400 {object} errorResponse
 // @Failure      409 {object} errorResponse
 // @Failure      500 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Security     BearerAuth
 // @Router       /items [post]
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var item inventory.Item
@@ -159,6 +169,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 // @Failure      400 {object} errorResponse
 // @Failure      404 {object} errorResponse
 // @Failure      500 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Security     BearerAuth
 // @Router       /items/{sku} [put]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	var item inventory.Item
@@ -189,6 +201,8 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 // @Success      204
 // @Failure      404 {object} errorResponse
 // @Failure      500 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Security     BearerAuth
 // @Router       /items/{sku} [delete]
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	err := h.service.Delete(r.Context(), r.PathValue("sku"))

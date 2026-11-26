@@ -14,6 +14,7 @@ import (
 	"time"
 
 	_ "github.com/Julianfreak/micro-test/docs"
+	"github.com/Julianfreak/micro-test/internal/auth"
 	"github.com/Julianfreak/micro-test/internal/httpapi"
 	"github.com/Julianfreak/micro-test/internal/inventory"
 	"github.com/Julianfreak/micro-test/internal/postgres"
@@ -30,6 +31,10 @@ import (
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 // @host      localhost:8089
 // @BasePath  /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter "Bearer" followed by a space and a valid JWT.
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
@@ -44,6 +49,14 @@ func run() (runErr error) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		databaseURL = "postgres://micro_test:micro_test@localhost:5432/micro_test?sslmode=disable"
+	}
+	tokenManager, err := auth.NewManager(
+		os.Getenv("JWT_USERNAME"),
+		os.Getenv("JWT_PASSWORD"),
+		os.Getenv("JWT_SECRET"),
+	)
+	if err != nil {
+		return fmt.Errorf("configure JWT authentication: %w", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -63,11 +76,12 @@ func run() (runErr error) {
 
 	service := inventory.NewService(store)
 	mux := httpapi.NewHandler(service, store).Routes()
+	mux.Handle("POST /auth/token", httpapi.NewTokenHandler(tokenManager))
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	server := &http.Server{
 		Addr:              ":" + strconv.Itoa(port),
-		Handler:           mux,
+		Handler:           tokenManager.Middleware(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,

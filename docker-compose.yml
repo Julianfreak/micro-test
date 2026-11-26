@@ -26,6 +26,9 @@ services:
     environment:
       PORT: "8089"
       DATABASE_URL: postgres://micro_test:micro_test@postgres:5432/micro_test?sslmode=disable
+      JWT_USERNAME: ${JWT_USERNAME:?JWT_USERNAME is required}
+      JWT_PASSWORD: ${JWT_PASSWORD:?JWT_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
       postgres:
         condition: service_healthy

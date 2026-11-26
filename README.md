@@ -7,6 +7,7 @@ Microservicio de inventario desarrollado en Go. Sirve como base de referencia pa
 - API REST para crear, listar, consultar, actualizar y eliminar artículos.
 - PostgreSQL con creación automática de la tabla al iniciar el servicio.
 - Validación de solicitudes JSON y errores HTTP consistentes.
+- Autenticación JWT con credenciales configuradas por entorno y tokens con duración de 24 horas.
 - Chequeos de salud diferenciados: liveness y readiness.
 - Apagado graceful y límites de tiempo para las conexiones HTTP.
 - Arquitectura hexagonal: aplicación y dominio aislados de los adaptadores HTTP y PostgreSQL.
@@ -19,14 +20,18 @@ Microservicio de inventario desarrollado en Go. Sirve como base de referencia pa
 
 - Go 1.23.3.
 - Docker y Docker Compose para iniciar la API junto con PostgreSQL.
+- OpenSSL para generar las credenciales de desarrollo del ejemplo.
 
 ## Inicio rápido
 
 Desde la raíz del repositorio:
 
 ```bash
+cp .env.example .env
 docker compose up --build -d
 ```
+
+Antes de iniciar, reemplaza los valores de ejemplo en `.env`; genera `JWT_SECRET` con `openssl rand -hex 32` y elige una contraseña segura. Guarda las credenciales para solicitar tokens. `.env` es local, está excluido de Git y del contexto de Docker, y no debe compartirse ni usarse como almacén de secretos en producción.
 
 Verifica el estado y los logs:
 
@@ -76,16 +81,28 @@ Cada artículo tiene un SKU único, un nombre y una cantidad no negativa:
 | `GET` | `/health/live` | Indica que el proceso está activo |
 | `GET` | `/health/ready` | Comprueba que PostgreSQL responde |
 | `GET` | `/health` | Alias de readiness, conservado por compatibilidad |
+| `POST` | `/auth/token` | Emite un JWT usando las credenciales configuradas |
 
-Ejemplo para crear un artículo:
+Todas las rutas, incluidas las de salud y Swagger, requieren `Authorization: Bearer <token>`. Solo `POST /auth/token` es público. Los tokens expiran después de 24 horas.
+
+Solicita un token:
+
+```bash
+curl -X POST http://localhost:8089/auth/token \
+  -H 'Content-Type: application/json' \
+  -d "{\"username\":\"$JWT_USERNAME\",\"password\":\"$JWT_PASSWORD\"}"
+```
+
+Usa el `access_token` de la respuesta en las solicitudes protegidas. Por ejemplo:
 
 ```bash
 curl -X POST http://localhost:8089/items \
   -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <access_token>' \
   -d '{"sku":"SKU-001","name":"Teclado","quantity":12}'
 ```
 
-Las solicitudes inválidas responden `400`, los recursos inexistentes `404` y los SKU duplicados `409`. Las respuestas de error usan el formato:
+Las solicitudes inválidas responden `400`, las credenciales incorrectas o tokens ausentes/inválidos `401`, los recursos inexistentes `404` y los SKU duplicados `409`. Las respuestas de error usan el formato:
 
 ```json
 {
@@ -101,10 +118,16 @@ La especificación OpenAPI está disponible en Swagger UI y en `docs/swagger.jso
 |---|---|---|
 | `PORT` | `8089` | Puerto HTTP, entre 1 y 65535 |
 | `DATABASE_URL` | `postgres://micro_test:micro_test@localhost:5432/micro_test?sslmode=disable` | DSN de conexión a PostgreSQL |
+| `JWT_USERNAME` | — | Usuario requerido para solicitar un token |
+| `JWT_PASSWORD` | — | Contraseña requerida para solicitar un token |
+| `JWT_SECRET` | — | Clave de firma HS256 requerida; mínimo 32 bytes |
 
-Para ejecutar el servicio directamente con Go, inicia PostgreSQL por separado y configura el DSN:
+Para ejecutar el servicio directamente con Go, inicia PostgreSQL por separado y carga las variables JWT desde `.env` (Go no lee ese archivo automáticamente):
 
 ```bash
+set -a
+. ./.env
+set +a
 DATABASE_URL='postgres://micro_test:micro_test@localhost:5432/micro_test?sslmode=disable' go run .
 ```
 
