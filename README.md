@@ -119,6 +119,21 @@ go vet ./...
 go build ./...
 ```
 
+Para generar un perfil de cobertura y consultar el porcentaje por función y el total:
+
+```bash
+go test -race -coverprofile=coverage.out -covermode=atomic ./...
+go tool cover -func=coverage.out
+```
+
+Para explorar la cobertura en el navegador:
+
+```bash
+go tool cover -html=coverage.out
+```
+
+El workflow de CI también genera la cobertura y muestra su resumen en el resumen de la ejecución de GitHub Actions.
+
 Las pruebas del núcleo no requieren PostgreSQL; usan un repositorio en memoria para comprobar las reglas del servicio y la propagación de errores. El adaptador HTTP se prueba aparte mediante un puerto de aplicación simulado.
 
 Para regenerar la documentación Swagger después de modificar las anotaciones:

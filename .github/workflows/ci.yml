@@ -25,7 +25,10 @@ jobs:
       run: go build -v ./...
 
     - name: Run Tests
-      run: go test -race -v ./...
+      run: go test -race -coverprofile=coverage.out -covermode=atomic -v ./...
+
+    - name: Report coverage
+      run: go tool cover -func=coverage.out | tee -a "$GITHUB_STEP_SUMMARY"
 
     - name: Check formatting
       run: test -z "$(gofmt -l .)"
