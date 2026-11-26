@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("inventory item not found")
-	ErrConflict = errors.New("inventory item already exists")
-	ErrInvalid  = errors.New("invalid inventory item")
+	ErrNotFound            = errors.New("inventory item not found")
+	ErrConflict            = errors.New("inventory item already exists")
+	ErrInvalid             = errors.New("invalid inventory item")
+	ErrIdempotencyKeyReuse = errors.New("idempotency key was already used with a different request")
 )
 
 // Item represents one SKU and its current stock level.

@@ -2,12 +2,14 @@ package httpapi
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/Julianfreak/micro-test/internal/inventory"
 )
@@ -16,6 +18,7 @@ type inventoryUseCases interface {
 	List(context.Context) ([]inventory.Item, error)
 	Get(context.Context, string) (inventory.Item, error)
 	Create(context.Context, inventory.Item) (inventory.Item, error)
+	CreateIdempotently(context.Context, string, [32]byte, inventory.Item) (inventory.Item, error)
 	Update(context.Context, string, inventory.Item) (inventory.Item, error)
 	Delete(context.Context, string) error
 }
@@ -129,6 +132,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Param        item body inventory.Item true "Inventory item"
+// @Param        Idempotency-Key header string false "Optional key for safely retrying this request"
 // @Success      201 {object} inventory.Item
 // @Failure      400 {object} errorResponse
 // @Failure      409 {object} errorResponse
@@ -142,9 +146,32 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	created, err := h.service.Create(r.Context(), item)
+	rawKey := r.Header.Get("Idempotency-Key")
+	key := strings.TrimSpace(rawKey)
+	if (rawKey != "" && key == "") || len(key) > 255 {
+		writeError(w, http.StatusBadRequest, "Idempotency-Key must contain between 1 and 255 bytes")
+		return
+	}
+
+	var created inventory.Item
+	var err error
+	if key == "" {
+		created, err = h.service.Create(r.Context(), item)
+	} else {
+		fingerprint, hashErr := hashCreateRequest(item)
+		if hashErr != nil {
+			slog.ErrorContext(r.Context(), "hash idempotent create request", "error", hashErr)
+			writeError(w, http.StatusInternalServerError, "could not process idempotency key")
+			return
+		}
+		created, err = h.service.CreateIdempotently(r.Context(), key, fingerprint, item)
+	}
 	if errors.Is(err, inventory.ErrInvalid) {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if errors.Is(err, inventory.ErrIdempotencyKeyReuse) {
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 	if errors.Is(err, inventory.ErrConflict) {
@@ -157,6 +184,22 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, created)
+}
+
+func hashCreateRequest(item inventory.Item) ([32]byte, error) {
+	payload, err := json.Marshal(struct {
+		SKU      string `json:"sku"`
+		Name     string `json:"name"`
+		Quantity int32  `json:"quantity"`
+	}{
+		SKU:      item.SKU,
+		Name:     item.Name,
+		Quantity: item.Quantity,
+	})
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("encode inventory request: %w", err)
+	}
+	return sha256.Sum256(payload), nil
 }
 
 // @Summary      Update an inventory item

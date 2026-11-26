@@ -74,7 +74,7 @@ Cada artículo tiene un SKU único, un nombre y una cantidad no negativa:
 | Método | Ruta | Descripción |
 |---|---|---|
 | `GET` | `/items` | Lista los artículos |
-| `POST` | `/items` | Crea un artículo; responde `409` si el SKU ya existe |
+| `POST` | `/items` | Crea un artículo; responde `409` si el SKU ya existe o se reutiliza una clave con otro contenido |
 | `GET` | `/items/{sku}` | Consulta un artículo |
 | `PUT` | `/items/{sku}` | Actualiza el artículo; el SKU del cuerpo debe coincidir con la ruta |
 | `DELETE` | `/items/{sku}` | Elimina un artículo |
@@ -84,6 +84,7 @@ Cada artículo tiene un SKU único, un nombre y una cantidad no negativa:
 | `POST` | `/auth/token` | Emite un JWT usando las credenciales configuradas |
 
 Todas las rutas, incluidas las de salud y Swagger, requieren `Authorization: Bearer <token>`. Solo `POST /auth/token` es público. Los tokens expiran después de 24 horas.
+`POST /items` acepta opcionalmente `Idempotency-Key`: durante 24 horas, repetir la misma clave y el mismo contenido devuelve el resultado original; reutilizar la clave con otro contenido responde `409`. Sin esa cabecera, se conserva el comportamiento actual.
 
 Solicita un token:
 
@@ -99,6 +100,7 @@ Usa el `access_token` de la respuesta en las solicitudes protegidas. Por ejemplo
 curl -X POST http://localhost:8089/items \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <access_token>' \
+  -H 'Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000' \
   -d '{"sku":"SKU-001","name":"Teclado","quantity":12}'
 ```
 
@@ -175,7 +177,10 @@ El workflow de GitHub Actions está en `.github/workflows/ci.yml`. Usa Go 1.23.3
 ├── internal/
 │   ├── httpapi/                  # Adaptador de entrada HTTP y sus pruebas
 │   ├── inventory/                # Dominio, puerto de salida y servicio de aplicación
-│   └── postgres/                 # Adaptador de persistencia y esquema inicial
+│   └── postgres/                 # Adaptador de persistencia y migraciones
+│       └── migrations/
+│           ├── 001_inventory_items.sql
+│           └── 002_idempotency_requests.sql
 ├── .github/workflows/ci.yml
 ├── Dockerfile                    # Build multi-stage con runtime mínimo
 ├── docker-compose.yml            # API y PostgreSQL para desarrollo local

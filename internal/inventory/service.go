@@ -29,6 +29,13 @@ func (s *Service) Create(ctx context.Context, item Item) (Item, error) {
 	return s.repository.Create(ctx, item)
 }
 
+func (s *Service) CreateIdempotently(ctx context.Context, key string, requestHash [32]byte, item Item) (Item, error) {
+	if err := validateItem(item); err != nil {
+		return Item{}, err
+	}
+	return s.repository.CreateIdempotently(ctx, key, requestHash, item)
+}
+
 func (s *Service) Update(ctx context.Context, sku string, item Item) (Item, error) {
 	if item.SKU != sku {
 		return Item{}, fmt.Errorf("%w: sku in request body must match URL", ErrInvalid)

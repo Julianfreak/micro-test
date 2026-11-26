@@ -8,12 +8,22 @@ import (
 )
 
 type memoryRepository struct {
-	items map[string]Item
-	err   error
+	items       map[string]Item
+	idempotency map[string]memoryIdempotencyRecord
+	err         error
+}
+
+type memoryIdempotencyRecord struct {
+	hash [32]byte
+	item Item
+	err  error
 }
 
 func newMemoryRepository() *memoryRepository {
-	return &memoryRepository{items: make(map[string]Item)}
+	return &memoryRepository{
+		items:       make(map[string]Item),
+		idempotency: make(map[string]memoryIdempotencyRecord),
+	}
 }
 
 func (r *memoryRepository) List(context.Context) ([]Item, error) {
@@ -48,6 +58,29 @@ func (r *memoryRepository) Create(_ context.Context, item Item) (Item, error) {
 	item.UpdatedAt = time.Now()
 	r.items[item.SKU] = item
 	return item, nil
+}
+
+func (r *memoryRepository) CreateIdempotently(ctx context.Context, key string, requestHash [32]byte, item Item) (Item, error) {
+	if r.err != nil {
+		return Item{}, r.err
+	}
+	if previous, ok := r.idempotency[key]; ok {
+		if previous.hash != requestHash {
+			return Item{}, ErrIdempotencyKeyReuse
+		}
+		return previous.item, previous.err
+	}
+
+	created, err := r.Create(ctx, item)
+	if errors.Is(err, ErrConflict) {
+		r.idempotency[key] = memoryIdempotencyRecord{hash: requestHash, err: err}
+		return Item{}, err
+	}
+	if err != nil {
+		return Item{}, err
+	}
+	r.idempotency[key] = memoryIdempotencyRecord{hash: requestHash, item: created}
+	return created, nil
 }
 
 func (r *memoryRepository) Update(_ context.Context, sku string, item Item) (Item, error) {
@@ -181,6 +214,30 @@ func TestServiceCreatePropagatesConflict(t *testing.T) {
 	}
 	if _, err := service.Create(context.Background(), item); !errors.Is(err, ErrConflict) {
 		t.Fatalf("duplicate Create() error = %v, want ErrConflict", err)
+	}
+}
+
+func TestServiceCreateIdempotentlyReplaysAndRejectsChangedRequest(t *testing.T) {
+	service := NewService(newMemoryRepository())
+	ctx := context.Background()
+	item := Item{SKU: "SKU-1", Name: "Widget", Quantity: 4}
+	requestHash := [32]byte{1}
+
+	first, err := service.CreateIdempotently(ctx, "request-1", requestHash, item)
+	if err != nil {
+		t.Fatalf("first CreateIdempotently() error = %v", err)
+	}
+	replayed, err := service.CreateIdempotently(ctx, "request-1", requestHash, item)
+	if err != nil {
+		t.Fatalf("replayed CreateIdempotently() error = %v", err)
+	}
+	if replayed != first {
+		t.Fatalf("replayed item = %+v, want original result %+v", replayed, first)
+	}
+
+	item.Name = "Different widget"
+	if _, err := service.CreateIdempotently(ctx, "request-1", [32]byte{2}, item); !errors.Is(err, ErrIdempotencyKeyReuse) {
+		t.Fatalf("CreateIdempotently() error = %v, want ErrIdempotencyKeyReuse", err)
 	}
 }
 

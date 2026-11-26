@@ -239,6 +239,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/inventory.Item"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional key for safely retrying this request",
+                        "name": "Idempotency-Key",
+                        "in": "header"
                     }
                 ],
                 "responses": {

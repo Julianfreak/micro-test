@@ -181,6 +181,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/inventory.Item'
+      - description: Optional key for safely retrying this request
+        in: header
+        name: Idempotency-Key
+        type: string
       produces:
       - application/json
       responses:

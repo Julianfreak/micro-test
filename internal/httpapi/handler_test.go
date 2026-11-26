@@ -13,16 +13,26 @@ import (
 )
 
 type fakeUseCases struct {
-	items     map[string]inventory.Item
-	createErr error
-	listErr   error
-	getErr    error
-	updateErr error
-	deleteErr error
+	items       map[string]inventory.Item
+	idempotency map[string]fakeIdempotencyRecord
+	createErr   error
+	listErr     error
+	getErr      error
+	updateErr   error
+	deleteErr   error
+}
+
+type fakeIdempotencyRecord struct {
+	hash [32]byte
+	item inventory.Item
+	err  error
 }
 
 func newFakeUseCases() *fakeUseCases {
-	return &fakeUseCases{items: make(map[string]inventory.Item)}
+	return &fakeUseCases{
+		items:       make(map[string]inventory.Item),
+		idempotency: make(map[string]fakeIdempotencyRecord),
+	}
 }
 
 func (s *fakeUseCases) List(context.Context) ([]inventory.Item, error) {
@@ -56,6 +66,25 @@ func (s *fakeUseCases) Create(_ context.Context, item inventory.Item) (inventory
 	}
 	s.items[item.SKU] = item
 	return item, nil
+}
+
+func (s *fakeUseCases) CreateIdempotently(ctx context.Context, key string, requestHash [32]byte, item inventory.Item) (inventory.Item, error) {
+	if previous, ok := s.idempotency[key]; ok {
+		if previous.hash != requestHash {
+			return inventory.Item{}, inventory.ErrIdempotencyKeyReuse
+		}
+		return previous.item, previous.err
+	}
+	created, err := s.Create(ctx, item)
+	if errors.Is(err, inventory.ErrConflict) {
+		s.idempotency[key] = fakeIdempotencyRecord{hash: requestHash, err: err}
+		return inventory.Item{}, err
+	}
+	if err != nil {
+		return inventory.Item{}, err
+	}
+	s.idempotency[key] = fakeIdempotencyRecord{hash: requestHash, item: created}
+	return created, nil
 }
 
 func (s *fakeUseCases) Update(_ context.Context, sku string, item inventory.Item) (inventory.Item, error) {
@@ -110,6 +139,46 @@ func TestHandlerCreateAndGetItem(t *testing.T) {
 	}
 	if item.SKU != "SKU-1" || item.Quantity != 4 {
 		t.Fatalf("unexpected item response: %+v", item)
+	}
+}
+
+func TestHandlerCreateReplaysIdempotentResponse(t *testing.T) {
+	handler := NewHandler(newFakeUseCases(), fakeReadiness{}).Routes()
+	body := `{"sku":"SKU-1","name":"Widget","quantity":4}`
+
+	sendCreate := func(body string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/items", strings.NewReader(body))
+		request.Header.Set("Idempotency-Key", "request-1")
+		handler.ServeHTTP(response, request)
+		return response
+	}
+
+	first := sendCreate(body)
+	replayed := sendCreate(`{"quantity":4,"name":"Widget","sku":"SKU-1"}`)
+	if first.Code != http.StatusCreated || replayed.Code != http.StatusCreated {
+		t.Fatalf("statuses = (%d, %d), want (%d, %d)", first.Code, replayed.Code, http.StatusCreated, http.StatusCreated)
+	}
+	if first.Body.String() != replayed.Body.String() {
+		t.Fatalf("replayed response = %q, want original response %q", replayed.Body.String(), first.Body.String())
+	}
+
+	changed := sendCreate(`{"sku":"SKU-1","name":"Different widget","quantity":4}`)
+	if changed.Code != http.StatusConflict {
+		t.Fatalf("same key with changed request status = %d, want %d", changed.Code, http.StatusConflict)
+	}
+}
+
+func TestHandlerRejectsInvalidIdempotencyKey(t *testing.T) {
+	handler := NewHandler(newFakeUseCases(), fakeReadiness{}).Routes()
+	request := httptest.NewRequest(http.MethodPost, "/items", strings.NewReader(
+		`{"sku":"SKU-1","name":"Widget","quantity":4}`))
+	request.Header.Set("Idempotency-Key", strings.Repeat("x", 256))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
 	}
 }
 
