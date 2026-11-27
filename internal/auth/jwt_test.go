@@ -132,7 +132,10 @@ func TestMiddlewareProtectsRoutesExceptTokenEndpoint(t *testing.T) {
 	}{
 		{name: "missing token", path: "/health/live", wantStatus: http.StatusUnauthorized},
 		{name: "token route is public", path: "/auth/token", wantStatus: http.StatusNoContent},
+		{name: "session route is public", path: "/auth/session", wantStatus: http.StatusNoContent},
+		{name: "logout route is public", path: "/auth/logout", wantStatus: http.StatusNoContent},
 		{name: "valid bearer token", path: "/items", authHeader: "Bearer " + validToken, wantStatus: http.StatusNoContent},
+		{name: "valid session cookie", path: "/items", wantStatus: http.StatusNoContent},
 		{name: "wrong authorization scheme", path: "/items", authHeader: "Basic token", wantStatus: http.StatusUnauthorized},
 	}
 
@@ -141,6 +144,9 @@ func TestMiddlewareProtectsRoutesExceptTokenEndpoint(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, test.path, nil)
 			if test.authHeader != "" {
 				request.Header.Set("Authorization", test.authHeader)
+			}
+			if test.name == "valid session cookie" {
+				request.AddCookie(&http.Cookie{Name: SessionCookieName, Value: validToken})
 			}
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)

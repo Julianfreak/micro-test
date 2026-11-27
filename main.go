@@ -46,6 +46,10 @@ func run() (runErr error) {
 	if err != nil || port < 1 || port > 65535 {
 		return fmt.Errorf("PORT must be an integer between 1 and 65535")
 	}
+	secureCookie, err := envBool("COOKIE_SECURE", false)
+	if err != nil {
+		return fmt.Errorf("configure session cookie: %w", err)
+	}
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		databaseURL = "postgres://micro_test:micro_test@localhost:5432/micro_test?sslmode=disable"
@@ -77,6 +81,8 @@ func run() (runErr error) {
 	service := inventory.NewService(store)
 	mux := httpapi.NewHandler(service, store).Routes()
 	mux.Handle("POST /auth/token", httpapi.NewTokenHandler(tokenManager))
+	mux.Handle("POST /auth/session", httpapi.NewSessionHandler(tokenManager, secureCookie))
+	mux.Handle("POST /auth/logout", httpapi.NewLogoutHandler(secureCookie))
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	server := &http.Server{
@@ -119,6 +125,18 @@ func envInt(key string, fallback int) (int, error) {
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", key, err)
+	}
+	return parsed, nil
+}
+
+func envBool(key string, fallback bool) (bool, error) {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", key, err)
 	}
 	return parsed, nil
 }

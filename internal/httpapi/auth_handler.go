@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/Julianfreak/micro-test/internal/auth"
 )
@@ -25,6 +26,10 @@ type tokenResponse struct {
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
+type sessionResponse struct {
+	ExpiresIn int64 `json:"expires_in"`
+}
+
 // @Summary      Obtain a JWT access token
 // @Tags         auth
 // @Accept       json
@@ -36,6 +41,24 @@ type tokenResponse struct {
 // @Failure      500 {object} errorResponse
 // @Router       /auth/token [post]
 func NewTokenHandler(issuer TokenIssuer) http.Handler {
+	return newCredentialHandler(issuer, false, true)
+}
+
+// @Summary      Create a persistent browser session
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        credentials body tokenRequest true "Configured username and password"
+// @Success      200 {object} sessionResponse
+// @Failure      400 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Failure      500 {object} errorResponse
+// @Router       /auth/session [post]
+func NewSessionHandler(issuer TokenIssuer, secureCookie bool) http.Handler {
+	return newCredentialHandler(issuer, secureCookie, false)
+}
+
+func newCredentialHandler(issuer TokenIssuer, secureCookie, includeToken bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<16)
 		decoder := json.NewDecoder(r.Body)
@@ -61,10 +84,47 @@ func NewTokenHandler(issuer TokenIssuer) http.Handler {
 			writeError(w, http.StatusInternalServerError, "could not issue access token")
 			return
 		}
-		writeJSON(w, http.StatusOK, tokenResponse{
-			AccessToken: token,
-			TokenType:   "Bearer",
-			ExpiresIn:   int64(auth.TokenLifetime.Seconds()),
+		if includeToken {
+			writeJSON(w, http.StatusOK, tokenResponse{
+				AccessToken: token,
+				TokenType:   "Bearer",
+				ExpiresIn:   int64(auth.TokenLifetime.Seconds()),
+			})
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     auth.SessionCookieName,
+			Value:    token,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   secureCookie,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   int(auth.TokenLifetime.Seconds()),
+			Expires:  time.Now().Add(auth.TokenLifetime),
 		})
+		writeJSON(w, http.StatusOK, sessionResponse{
+			ExpiresIn: int64(auth.TokenLifetime.Seconds()),
+		})
+	})
+}
+
+// @Summary      End the browser session
+// @Tags         auth
+// @Success      204
+// @Router       /auth/logout [post]
+func NewLogoutHandler(secureCookie bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:     auth.SessionCookieName,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   secureCookie,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+			Expires:  time.Unix(0, 0),
+		})
+		w.WriteHeader(http.StatusNoContent)
 	})
 }

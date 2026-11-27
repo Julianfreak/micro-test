@@ -12,6 +12,11 @@ definitions:
       status:
         type: string
     type: object
+  httpapi.sessionResponse:
+    properties:
+      expires_in:
+        type: integer
+    type: object
   httpapi.tokenRequest:
     properties:
       password:
@@ -52,6 +57,47 @@ info:
   title: Micro-Test Inventory API
   version: "1.0"
 paths:
+  /auth/logout:
+    post:
+      responses:
+        "204":
+          description: No Content
+      summary: End the browser session
+      tags:
+      - auth
+  /auth/session:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Configured username and password
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.tokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.sessionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.errorResponse'
+      summary: Create a persistent browser session
+      tags:
+      - auth
   /auth/token:
     post:
       consumes:

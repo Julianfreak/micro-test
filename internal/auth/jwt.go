@@ -14,6 +14,7 @@ import (
 )
 
 const TokenLifetime = 24 * time.Hour
+const SessionCookieName = "micro_test_session"
 
 const tokenIssuer = "micro-test"
 
@@ -91,13 +92,21 @@ func (m *Manager) ValidateToken(tokenString string) error {
 
 func (m *Manager) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/auth/token" {
+		if r.URL.Path == "/auth/token" || r.URL.Path == "/auth/session" || r.URL.Path == "/auth/logout" {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		parts := strings.Fields(r.Header.Get("Authorization"))
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || m.ValidateToken(parts[1]) != nil {
+		token := ""
+		if authorization := r.Header.Get("Authorization"); authorization != "" {
+			parts := strings.Fields(authorization)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+				token = parts[1]
+			}
+		} else if cookie, err := r.Cookie(SessionCookieName); err == nil {
+			token = cookie.Value
+		}
+		if token == "" || m.ValidateToken(token) != nil {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)

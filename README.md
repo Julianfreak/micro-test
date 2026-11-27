@@ -14,6 +14,7 @@ Microservicio de inventario desarrollado en Go. Sirve como base de referencia pa
 - Pruebas unitarias del servicio con un repositorio en memoria y del adaptador HTTP con casos simulados.
 - Docker multi-stage y entorno local con Docker Compose.
 - OpenAPI/Swagger en `/swagger/index.html`.
+- Interfaz web responsive en React para iniciar sesión y gestionar el inventario.
 - CI con compilación, pruebas con `-race`, formato, `go vet` y build de Docker.
 
 ## Requisitos
@@ -81,28 +82,32 @@ Cada artículo tiene un SKU único, un nombre y una cantidad no negativa:
 | `GET` | `/health/live` | Indica que el proceso está activo |
 | `GET` | `/health/ready` | Comprueba que PostgreSQL responde |
 | `GET` | `/health` | Alias de readiness, conservado por compatibilidad |
-| `POST` | `/auth/token` | Emite un JWT usando las credenciales configuradas |
+| `POST` | `/auth/token` | Emite un JWT Bearer para clientes API |
+| `POST` | `/auth/session` | Inicia sesión en la interfaz web y establece una cookie |
+| `POST` | `/auth/logout` | Cierra la sesión eliminando la cookie |
 
-Todas las rutas, incluidas las de salud y Swagger, requieren `Authorization: Bearer <token>`. Solo `POST /auth/token` es público. Los tokens expiran después de 24 horas.
+Las rutas protegidas aceptan `Authorization: Bearer <token>` o la cookie de sesión `HttpOnly`. `POST /auth/token`, `POST /auth/session` y `POST /auth/logout` son públicas; Swagger y las rutas de salud requieren autenticación. La cookie y el JWT expiran después de 24 horas. `/auth/token` conserva su respuesta JSON con el Bearer token para clientes API; la interfaz web usa `/auth/session`, que no expone el token en JavaScript.
 `POST /items` acepta opcionalmente `Idempotency-Key`: durante 24 horas, repetir la misma clave y el mismo contenido devuelve el resultado original; reutilizar la clave con otro contenido responde `409`. Sin esa cabecera, se conserva el comportamiento actual.
 
-Solicita un token:
+Inicia sesión y guarda la cookie de sesión:
 
 ```bash
-curl -X POST http://localhost:8089/auth/token \
+curl -c session.cookies -X POST http://localhost:8089/auth/session \
   -H 'Content-Type: application/json' \
   -d "{\"username\":\"$JWT_USERNAME\",\"password\":\"$JWT_PASSWORD\"}"
 ```
 
-Usa el `access_token` de la respuesta en las solicitudes protegidas. Por ejemplo:
+Usa la cookie en las solicitudes protegidas:
 
 ```bash
 curl -X POST http://localhost:8089/items \
   -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer <access_token>' \
+  -b session.cookies \
   -H 'Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000' \
   -d '{"sku":"SKU-001","name":"Teclado","quantity":12}'
 ```
+
+La interfaz web conserva esta cookie al recargar la página. Para cerrar la sesión, envía `POST /auth/logout` con la cookie.
 
 Las solicitudes inválidas responden `400`, las credenciales incorrectas o tokens ausentes/inválidos `401`, los recursos inexistentes `404` y los SKU duplicados `409`. Las respuestas de error usan el formato:
 
@@ -123,6 +128,7 @@ La especificación OpenAPI está disponible en Swagger UI y en `docs/swagger.jso
 | `JWT_USERNAME` | — | Usuario requerido para solicitar un token |
 | `JWT_PASSWORD` | — | Contraseña requerida para solicitar un token |
 | `JWT_SECRET` | — | Clave de firma HS256 requerida; mínimo 32 bytes |
+| `COOKIE_SECURE` | `false` | Activa el atributo `Secure` de la cookie; debe ser `true` detrás de HTTPS en producción |
 
 Para ejecutar el servicio directamente con Go, inicia PostgreSQL por separado y carga las variables JWT desde `.env` (Go no lee ese archivo automáticamente):
 
@@ -134,6 +140,27 @@ DATABASE_URL='postgres://micro_test:micro_test@localhost:5432/micro_test?sslmode
 ```
 
 La tabla de inventario se crea automáticamente al arrancar.
+
+## Interfaz web
+
+La aplicación React + TypeScript está en `web/`. En desarrollo, Vite reenvía `/auth`, `/health`, `/items` y `/swagger` al backend en `http://localhost:8089`, por lo que frontend y API usan el mismo origen desde el navegador.
+
+Con el backend iniciado, abre otra terminal:
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+Abre `http://localhost:5173`. Para validar la versión de producción del frontend:
+
+```bash
+cd web
+npm run build
+```
+
+En producción, sirve la aplicación y la API bajo el mismo origen mediante un proxy inverso y configura `COOKIE_SECURE=true` con HTTPS habilitado. La cookie usa `HttpOnly` y `SameSite=Lax`; no se guarda el JWT en `localStorage`.
 
 ## Desarrollo y validación
 
@@ -174,6 +201,7 @@ El workflow de GitHub Actions está en `.github/workflows/ci.yml`. Usa Go 1.23.3
 ```text
 .
 ├── docs/                         # OpenAPI generado con Swaggo
+├── web/                          # Interfaz React + TypeScript (Vite)
 ├── internal/
 │   ├── httpapi/                  # Adaptador de entrada HTTP y sus pruebas
 │   ├── inventory/                # Dominio, puerto de salida y servicio de aplicación
