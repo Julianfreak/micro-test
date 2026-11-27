@@ -9,6 +9,16 @@ interface ApiErrorBody {
   error?: string
 }
 
+function createIdempotencyKey(): string {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('')
+}
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -54,7 +64,7 @@ export const api = {
   createItem: (item: InventoryItem) =>
     request<InventoryItem>('/items', {
       method: 'POST',
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
+      headers: { 'Idempotency-Key': createIdempotencyKey() },
       body: JSON.stringify(item),
     }),
   updateItem: (sku: string, item: InventoryItem) =>
