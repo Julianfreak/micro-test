@@ -1,4 +1,7 @@
 {
+    "schemes": [
+        "http"
+    ],
     "swagger": "2.0",
     "info": {
         "description": "API de inventario para un microservicio de referencia en Go.",

@@ -361,6 +361,8 @@ paths:
       summary: Update an inventory item
       tags:
       - inventory
+schemes:
+- http
 securityDefinitions:
   BearerAuth:
     description: Enter "Bearer" followed by a space and a valid JWT.

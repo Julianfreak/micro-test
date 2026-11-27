@@ -593,7 +593,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8089",
 	BasePath:         "/",
-	Schemes:          []string{},
+	Schemes:          []string{"http"},
 	Title:            "Micro-Test Inventory API",
 	Description:      "API de inventario para un microservicio de referencia en Go.",
 	InfoInstanceName: "swagger",

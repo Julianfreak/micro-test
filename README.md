@@ -89,6 +89,12 @@ Cada artículo tiene un SKU único, un nombre y una cantidad no negativa:
 Las rutas protegidas aceptan `Authorization: Bearer <token>` o la cookie de sesión `HttpOnly`. `POST /auth/token`, `POST /auth/session` y `POST /auth/logout` son públicas; Swagger y las rutas de salud requieren autenticación. La cookie y el JWT expiran después de 24 horas. `/auth/token` conserva su respuesta JSON con el Bearer token para clientes API; la interfaz web usa `/auth/session`, que no expone el token en JavaScript.
 `POST /items` acepta opcionalmente `Idempotency-Key`: durante 24 horas, repetir la misma clave y el mismo contenido devuelve el resultado original; reutilizar la clave con otro contenido responde `409`. Sin esa cabecera, se conserva el comportamiento actual.
 
+Para probar la API localmente en Insomnia, usa HTTP (el servidor local no configura TLS):
+
+1. Crea una solicitud `POST` a `http://localhost:8089/auth/token`.
+2. Selecciona cuerpo JSON y envía `{"username":"<JWT_USERNAME>","password":"<JWT_PASSWORD>"}`, usando los valores configurados localmente en `.env`.
+3. Copia `access_token` de la respuesta y configúralo como autenticación Bearer en las solicitudes protegidas, por ejemplo `GET http://localhost:8089/items`.
+
 Inicia sesión y guarda la cookie de sesión:
 
 ```bash
